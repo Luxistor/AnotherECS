@@ -1,4 +1,8 @@
-use std::{any::TypeId, collections::HashMap};
+
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
 
 use crate::{
     component_storage::ComponentStorage,
@@ -11,6 +15,7 @@ use crate::{
 pub struct World {
     allocator: EntityAllocator,
     component_storages: HashMap<TypeId, ComponentStorage>,
+    resources: HashMap<TypeId, Box<dyn Any>>,
 }
 
 impl World {
@@ -18,6 +23,23 @@ impl World {
         Self {
             allocator: EntityAllocator::new(),
             component_storages: HashMap::new(),
+            resources: HashMap::new(),
+        }
+    }
+
+    pub fn insert_resource<T: 'static>(&mut self, resource: T) {
+        self.resources.insert(TypeId::of::<T>(), Box::new(resource));
+    }
+
+
+    pub fn get_resource<T: 'static>(&self) -> &T {
+        // SAFETY: 
+        // Resources are a map of TypeId of T -> Box<T>. If there is an entry, it is of type T
+        unsafe { 
+            self.resources
+            .get(&TypeId::of::<T>())
+            .expect("Resource not found in world!")
+            .downcast_ref_unchecked::<T>() 
         }
     }
 
@@ -46,17 +68,9 @@ impl World {
         Ok(())
     }
 
-    pub fn get_or_insert_storage<T: 'static>(&mut self) -> &mut ComponentStorage {
-        let type_id = TypeId::of::<T>();
-
-        match self.component_storages.get_mut(&type_id) {
-            Some(storage) => return storage,
-            None => {
-                self.component_storages
-                    .insert(type_id, ComponentStorage::new::<T>(self.allocator.len()));
-
-                return self.component_storages.get_mut(&type_id).unwrap();
-            }
-        }
+    pub(crate) fn get_or_insert_storage<T: 'static>(&mut self) -> &mut ComponentStorage {
+        self.component_storages
+            .entry(TypeId::of::<T>())
+            .or_insert(ComponentStorage::new::<T>(self.allocator.len()))
     }
 }
