@@ -43,6 +43,16 @@ impl World {
         }
     }
 
+    pub fn get_resource_mut<T: 'static>(&mut self) -> &mut T {
+        // SAFETY: Analogous to World::get_resource
+        unsafe { 
+            self.resources
+            .get_mut(&TypeId::of::<T>())
+            .expect("Resource not found in world!")
+            .downcast_mut_unchecked::<T>() 
+        }
+    }
+
     pub fn spawn(&mut self) -> EntityBuilder {
         let (alloc_state, entity) = self.allocator.allocate();
 
@@ -62,7 +72,7 @@ impl World {
         self.allocator.deallocate(entity)?;
 
         for storage in self.component_storages.values_mut() {
-            storage.remove(entity);
+            let _ = storage.remove(entity);
         }
 
         Ok(())

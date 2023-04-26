@@ -7,6 +7,5 @@ mod world;
 mod entity_builder;
 mod error;
 mod component;
-mod scheduler;
 
 fn main (){}
